@@ -9,6 +9,7 @@ ide/
 
 # IDE settings
 .idea/
+.vscode/
 *.iml
 
 # VSCode extension build artifacts
