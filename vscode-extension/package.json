@@ -1,0 +1,184 @@
+{
+    "name": "intellij-formatter",
+    "displayName": "IntelliJ Code Formatter",
+    "description": "Format code using IntelliJ IDEA's formatting engine",
+    "version": "2025.3.1",
+    "publisher": "idea-formatter",
+    "icon": "icon.png",
+    "engines": {
+        "vscode": "^1.80.0"
+    },
+    "categories": [
+        "Formatters"
+    ],
+    "keywords": [
+        "formatter",
+        "intellij",
+        "java",
+        "kotlin",
+        "groovy",
+        "gradle",
+        "xml",
+        "html",
+        "json",
+        "yaml",
+        "properties"
+    ],
+    "activationEvents": [
+        "onLanguage:java",
+        "onLanguage:kotlin",
+        "onLanguage:groovy",
+        "onLanguage:gradle",
+        "onLanguage:gradle-kotlin-dsl",
+        "onLanguage:xml",
+        "onLanguage:html",
+        "onLanguage:json",
+        "onLanguage:yaml",
+        "onLanguage:properties"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "configuration": {
+            "title": "IntelliJ Formatter",
+            "properties": {
+                "intellijFormatter.javaPath": {
+                    "type": "string",
+                    "default": "java",
+                    "description": "Path to Java executable (Java 21+ required)"
+                },
+                "intellijFormatter.codeStylePath": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Path to IntelliJ code style XML file"
+                },
+                "intellijFormatter.enabled": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable IntelliJ formatter globally"
+                },
+                "intellijFormatter.formatOnSave": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Format files on save (use VSCode's editor.formatOnSave instead)"
+                },
+                "intellijFormatter.languages.java": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for Java files"
+                },
+                "intellijFormatter.languages.kotlin": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for Kotlin files"
+                },
+                "intellijFormatter.languages.groovy": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for Groovy files"
+                },
+                "intellijFormatter.languages.gradle": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for Gradle files (.gradle, .gradle.kts)"
+                },
+                "intellijFormatter.languages.xml": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for XML files"
+                },
+                "intellijFormatter.languages.html": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for HTML files"
+                },
+                "intellijFormatter.languages.json": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for JSON files"
+                },
+                "intellijFormatter.languages.yaml": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for YAML files"
+                },
+                "intellijFormatter.languages.properties": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable formatting for Properties files"
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "intellijFormatter.formatDocument",
+                "title": "Format Document with IntelliJ"
+            },
+            {
+                "command": "intellijFormatter.formatSelection",
+                "title": "Format Selection with IntelliJ"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "intellijFormatter.formatDocument",
+                "key": "ctrl+alt+l",
+                "mac": "cmd+alt+l",
+                "when": "editorTextFocus && !editorReadonly"
+            }
+        ],
+        "configurationDefaults": {
+            "[java]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[kotlin]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[groovy]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[gradle]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[gradle-kotlin-dsl]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[xml]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[html]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[json]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[yaml]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            },
+            "[properties]": {
+                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile",
+        "lint": "eslint src --ext ts",
+        "package": "vsce package"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@types/vscode": "^1.80.0",
+        "@typescript-eslint/eslint-plugin": "^6.0.0",
+        "@typescript-eslint/parser": "^6.0.0",
+        "@vscode/vsce": "^2.21.0",
+        "eslint": "^8.45.0",
+        "typescript": "^5.1.0"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/your-repo/idea-code-formatter"
+    },
+    "license": "Apache-2.0"
+}
