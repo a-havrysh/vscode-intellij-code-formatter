@@ -1,0 +1,27 @@
+# Gradle build
+build/
+.gradle/
+
+# IntelliJ IDEA JARs (downloaded via gradle setupIde)
+ide/
+.idea-downloads/
+
+# IDE settings
+.idea/
+*.iml
+
+# VSCode extension build artifacts
+vscode-extension/node_modules/
+vscode-extension/out/
+vscode-extension/formatter/
+vscode-extension/*.vsix
+
+# Backup folder
+backup/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

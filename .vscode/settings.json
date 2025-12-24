@@ -1,0 +1,6 @@
+{
+    "claudeCode.allowDangerouslySkipPermissions": true,
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "claudeCode.initialPermissionMode": "bypassPermissions",
+    "java.import.gradle.java.home": "/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+}
