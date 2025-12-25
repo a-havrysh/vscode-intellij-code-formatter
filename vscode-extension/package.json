@@ -128,34 +128,34 @@
         ],
         "configurationDefaults": {
             "[java]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[kotlin]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[groovy]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[gradle]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[gradle-kotlin-dsl]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[xml]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[html]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[json]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[yaml]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             },
             "[properties]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "kern0x1b.intellij-formatter"
             }
         }
     },
