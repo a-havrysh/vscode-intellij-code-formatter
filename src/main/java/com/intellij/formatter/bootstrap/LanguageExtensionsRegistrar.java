@@ -42,7 +42,9 @@ import org.jetbrains.yaml.formatter.YAMLFormattingModelBuilder;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static com.intellij.formatter.bootstrap.BootstrapLogger.debug;
 import static com.intellij.formatter.bootstrap.BootstrapLogger.skipped;
@@ -50,88 +52,172 @@ import static com.intellij.formatter.bootstrap.BootstrapLogger.warn;
 
 /**
  * Registrar for language-specific parser definitions, AST factories, and formatting builders.
- *
- * <p>This class handles the registration of IntelliJ's language extensions required for
- * code formatting. The IntelliJ Platform uses a plugin system where language support
- * is provided via extensions. For standalone formatting, we manually register the
- * minimum required extensions.</p>
- *
- * <h2>Extension Types</h2>
- * <p>Each supported language requires several types of extensions:</p>
- *
- * <h3>Required Extensions</h3>
- * <ul>
- *     <li><b>ParserDefinition</b> - creates lexers and parsers for the language</li>
- *     <li><b>FormattingModelBuilder</b> - builds the formatting model used to format code</li>
- * </ul>
- *
- * <h3>Optional Extensions</h3>
- * <ul>
- *     <li><b>ASTFactory</b> - creates AST nodes (only needed for Java and XML)</li>
- *     <li><b>SyntaxDefinition</b> - IDEA 2025.x syntax-based parsing support</li>
- *     <li><b>ElementTypeConverter</b> - IDEA 2025.x element type conversion</li>
- * </ul>
- *
- * <h2>Supported Languages</h2>
- * <table>
- *     <tr><th>Language</th><th>Extensions</th></tr>
- *     <tr><td>Java</td><td>.java</td></tr>
- *     <tr><td>Kotlin</td><td>.kt, .kts, .gradle.kts</td></tr>
- *     <tr><td>Groovy</td><td>.groovy, .gradle</td></tr>
- *     <tr><td>XML</td><td>.xml, .xsd, .xsl, .xslt, .wsdl, .fxml, .pom</td></tr>
- *     <tr><td>HTML/XHTML</td><td>.html, .htm, .xhtml</td></tr>
- *     <tr><td>JSON</td><td>.json</td></tr>
- *     <tr><td>YAML</td><td>.yaml, .yml</td></tr>
- *     <tr><td>Properties</td><td>.properties</td></tr>
- * </table>
- *
- * @see FormatterBootstrap
- * @see ExtensionPointsRegistrar
+ * Supports lazy loading of languages based on file extension.
  */
 @UtilityClass
 public class LanguageExtensionsRegistrar {
 
     private static final String COMPONENT = "Languages";
 
+    /** Set of already registered language IDs for lazy loading */
+    private static final Set<String> registeredLanguages = new HashSet<>();
+
+    /** Flag indicating if core formatting service is registered */
+    private static boolean formattingServiceRegistered = false;
+
+    /**
+     * Language groups for dependency management.
+     * Some languages depend on others (e.g., HTML depends on XML).
+     */
+    public enum LanguageGroup {
+        JAVA,
+        KOTLIN,
+        GROOVY,
+        XML,      // Also registers HTML/XHTML
+        JSON,
+        YAML,
+        PROPERTIES
+    }
+
     /**
      * Registers all language extensions for supported file types.
-     *
-     * <p>The registration order matters for some languages. XML must be registered
-     * before HTML since HTML extends XMLLanguage. Java must be registered with
-     * special IDEA 2025.x compatibility extensions.</p>
-     *
-     * @param extensionArea  the application extension area
-     * @param rootDisposable the root disposable for extension lifecycle management
+     * @deprecated Use {@link #registerLanguageForFile(String, ExtensionsAreaImpl, Disposable)} for lazy loading
      */
+    @Deprecated
     public static void registerAll(ExtensionsAreaImpl extensionArea, Disposable rootDisposable) {
-        debug(COMPONENT, "Registering language extensions");
+        debug(COMPONENT, "Registering all language extensions");
 
-        // CoreFormattingService provides the actual formatting algorithm
         registerFormattingService(extensionArea, rootDisposable);
 
-        // Register languages in dependency order (base languages first)
-        registerJava();        // Required by Kotlin for some type resolution
-        registerXml();         // Required by HTML (HTML extends XML)
-        registerHtml();        // Depends on XML
+        registerJava();
+        registerXml();
+        registerHtml();
         registerJson();
-        registerGroovy();      // Uses some Java infrastructure
+        registerGroovy();
         registerProperties();
         registerYaml();
         registerKotlin(extensionArea, rootDisposable);
 
-        debug(COMPONENT, "Language extensions registered");
+        debug(COMPONENT, "All language extensions registered");
+    }
+
+    /**
+     * Registers only the language needed for the given file.
+     * This is the preferred method for lazy loading.
+     *
+     * @param fileName the file name to determine language
+     * @param extensionArea the application extension area
+     * @param rootDisposable the root disposable
+     * @return true if a language was registered, false if already registered or unsupported
+     */
+    public static synchronized boolean registerLanguageForFile(String fileName,
+                                                               ExtensionsAreaImpl extensionArea,
+                                                               Disposable rootDisposable) {
+        var group = getLanguageGroupForFile(fileName);
+        if (group == null) {
+            debug(COMPONENT, "No language group for file: " + fileName);
+            return false;
+        }
+
+        return registerLanguageGroup(group, extensionArea, rootDisposable);
+    }
+
+    /**
+     * Registers a specific language group with its dependencies.
+     */
+    public static synchronized boolean registerLanguageGroup(LanguageGroup group,
+                                                             ExtensionsAreaImpl extensionArea,
+                                                             Disposable rootDisposable) {
+        // Always ensure formatting service is registered first
+        if (!formattingServiceRegistered) {
+            registerFormattingService(extensionArea, rootDisposable);
+        }
+
+        String groupId = group.name();
+        if (registeredLanguages.contains(groupId)) {
+            debug(COMPONENT, "Language already registered: " + groupId);
+            return false;
+        }
+
+        debug(COMPONENT, "Registering language group: " + groupId);
+
+        switch (group) {
+            case JAVA -> registerJava();
+            case KOTLIN -> {
+                // Kotlin may need Java for some type resolution
+                if (!registeredLanguages.contains(LanguageGroup.JAVA.name())) {
+                    registerJava();
+                    registeredLanguages.add(LanguageGroup.JAVA.name());
+                }
+                registerKotlin(extensionArea, rootDisposable);
+            }
+            case GROOVY -> registerGroovy();
+            case XML -> {
+                registerXml();
+                registerHtml(); // HTML depends on XML
+            }
+            case JSON -> registerJson();
+            case YAML -> registerYaml();
+            case PROPERTIES -> registerProperties();
+        }
+
+        registeredLanguages.add(groupId);
+        debug(COMPONENT, "Language group registered: " + groupId);
+        return true;
+    }
+
+    /**
+     * Determines the language group for a given file name.
+     *
+     * @param fileName the file name
+     * @return the language group, or null if unsupported
+     */
+    public static LanguageGroup getLanguageGroupForFile(String fileName) {
+        if (fileName == null) return null;
+
+        String lowerName = fileName.toLowerCase();
+
+        // Check specific patterns first
+        if (lowerName.endsWith(".gradle.kts")) {
+            return LanguageGroup.KOTLIN;
+        }
+
+        // Extract extension
+        int dotIndex = lowerName.lastIndexOf('.');
+        if (dotIndex < 0) return null;
+
+        String ext = lowerName.substring(dotIndex + 1);
+
+        return switch (ext) {
+            case "java" -> LanguageGroup.JAVA;
+            case "kt", "kts" -> LanguageGroup.KOTLIN;
+            case "groovy", "gradle" -> LanguageGroup.GROOVY;
+            case "xml", "xsd", "xsl", "xslt", "wsdl", "fxml", "pom" -> LanguageGroup.XML;
+            case "html", "htm", "xhtml" -> LanguageGroup.XML; // HTML needs XML
+            case "json" -> LanguageGroup.JSON;
+            case "yaml", "yml" -> LanguageGroup.YAML;
+            case "properties" -> LanguageGroup.PROPERTIES;
+            default -> null;
+        };
+    }
+
+    /**
+     * Checks if a language group is already registered.
+     */
+    public static boolean isLanguageRegistered(LanguageGroup group) {
+        return registeredLanguages.contains(group.name());
     }
 
     /**
      * Registers CoreFormattingService as the default formatting implementation.
-     *
-     * <p>CoreFormattingService is IntelliJ's built-in formatter that uses
-     * FormattingModelBuilder to create formatting models for each language.</p>
      */
     private static void registerFormattingService(ExtensionsAreaImpl extensionArea, Disposable rootDisposable) {
+        if (formattingServiceRegistered) return;
+
         try {
             ExtensionPoint<FormattingService> ep = extensionArea.getExtensionPoint("com.intellij.formattingService");
             ep.registerExtension(new CoreFormattingService(), rootDisposable);
+            formattingServiceRegistered = true;
             debug(COMPONENT, "Registered CoreFormattingService");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register CoreFormattingService", e);
@@ -140,27 +226,22 @@ public class LanguageExtensionsRegistrar {
 
     /**
      * Registers Java language support.
-     *
-     * <p>Java requires special handling for IDEA 2025.x which introduced a new
-     * syntax-based parsing system. We register both the traditional PSI components
-     * and the new syntax definition/element type converters.</p>
      */
     @SuppressWarnings("deprecation")
     private static void registerJava() {
+        if (registeredLanguages.contains("JAVA_INTERNAL")) return;
+
         try {
-            // Core Java PSI support
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(JavaLanguage.INSTANCE, new JavaParserDefinition());
             LanguageASTFactory.INSTANCE.addExplicitExtension(JavaLanguage.INSTANCE, new JavaASTFactory());
             LanguageFormatting.INSTANCE.addExplicitExtension(JavaLanguage.INSTANCE, new JavaFormattingModelBuilder());
 
-            // IDEA 2025.x syntax-based parsing support
-            // SyntaxDefinition defines how source code is tokenized
             tryRegisterSyntaxDefinition(JavaLanguage.INSTANCE,
                     "com.intellij.java.frontback.psi.impl.syntax.JavaSyntaxDefinitionExtension");
-            // ElementTypeConverter converts between old IElementType and new SyntaxElementType
             tryRegisterElementTypeConverter(JavaLanguage.INSTANCE,
                     "com.intellij.lang.java.syntax.JavaElementTypeConverterExtension");
 
+            registeredLanguages.add("JAVA_INTERNAL");
             debug(COMPONENT, "Registered Java");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register Java", e);
@@ -169,23 +250,21 @@ public class LanguageExtensionsRegistrar {
 
     /**
      * Registers XML language support.
-     *
-     * <p>XML is a base language for HTML, XHTML, and other markup languages.
-     * It must be registered before languages that extend it.</p>
      */
     private static void registerXml() {
+        if (registeredLanguages.contains("XML_INTERNAL")) return;
+
         try {
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(XMLLanguage.INSTANCE, new XMLParserDefinition());
-            // XmlASTFactory creates XML-specific AST nodes (XmlTag, XmlAttribute, etc.)
             LanguageASTFactory.INSTANCE.addExplicitExtension(XMLLanguage.INSTANCE, new XmlASTFactory());
             LanguageFormatting.INSTANCE.addExplicitExtension(XMLLanguage.INSTANCE, new XmlFormattingModelBuilder());
 
-            // IDEA 2025.x compatibility
             tryRegisterSyntaxDefinition(XMLLanguage.INSTANCE,
                     "com.intellij.lang.xml.XmlSyntaxDefinitionExtension");
             tryRegisterElementTypeConverter(XMLLanguage.INSTANCE,
                     "com.intellij.psi.xml.XmlElementTypeConverterExtension");
 
+            registeredLanguages.add("XML_INTERNAL");
             debug(COMPONENT, "Registered XML");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register XML", e);
@@ -194,20 +273,21 @@ public class LanguageExtensionsRegistrar {
 
     /**
      * Registers HTML and XHTML language support.
-     *
-     * <p>HTML extends XMLLanguage, so XML must be registered first. XHTML is
-     * a variant of HTML that follows stricter XML rules.</p>
      */
     private static void registerHtml() {
+        if (registeredLanguages.contains("HTML_INTERNAL")) return;
+
+        // HTML depends on XML
+        registerXml();
+
         try {
-            // HTML uses XML's AST factory but has its own parser and formatter
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(HTMLLanguage.INSTANCE, new HTMLParserDefinition());
             LanguageFormatting.INSTANCE.addExplicitExtension(HTMLLanguage.INSTANCE, new HtmlFormattingModelBuilder());
 
-            // XHTML follows HTML structure but with XML-strict parsing
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(XHTMLLanguage.INSTANCE, new XHTMLParserDefinition());
             LanguageFormatting.INSTANCE.addExplicitExtension(XHTMLLanguage.INSTANCE, new XhtmlFormattingModelBuilder());
 
+            registeredLanguages.add("HTML_INTERNAL");
             debug(COMPONENT, "Registered HTML/XHTML");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register HTML", e);
@@ -216,22 +296,20 @@ public class LanguageExtensionsRegistrar {
 
     /**
      * Registers JSON language support.
-     *
-     * <p>JSON requires multiple element type converters in IDEA 2025.x because
-     * it has both file-level and element-level type conversions.</p>
      */
     private static void registerJson() {
+        if (registeredLanguages.contains("JSON_INTERNAL")) return;
+
         try {
             var jsonLanguage = JsonLanguage.INSTANCE;
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(jsonLanguage, new JsonParserDefinition());
             LanguageFormatting.INSTANCE.addExplicitExtension(jsonLanguage, new JsonFormattingBuilderModel());
 
-            // JSON needs syntax definition for IDEA 2025.x
             tryRegisterSyntaxDefinition(jsonLanguage, "com.intellij.json.JsonLanguageDefinition");
-            // Try both file type and element type converters
             tryRegisterElementTypeConverter(jsonLanguage, "com.intellij.json.JsonFileTypeConverterFactory");
             tryRegisterElementTypeConverter(jsonLanguage, "com.intellij.json.psi.JsonElementTypeConverterFactory");
 
+            registeredLanguages.add("JSON_INTERNAL");
             debug(COMPONENT, "Registered JSON");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register JSON", e);
@@ -240,14 +318,15 @@ public class LanguageExtensionsRegistrar {
 
     /**
      * Registers Groovy language support.
-     *
-     * <p>Groovy is used for both .groovy files and Gradle build scripts (.gradle).
-     * It doesn't need special IDEA 2025.x converters as it uses traditional parsing.</p>
      */
     private static void registerGroovy() {
+        if (registeredLanguages.contains("GROOVY_INTERNAL")) return;
+
         try {
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(GroovyLanguage.INSTANCE, new GroovyParserDefinition());
             LanguageFormatting.INSTANCE.addExplicitExtension(GroovyLanguage.INSTANCE, new GroovyFormattingModelBuilder());
+
+            registeredLanguages.add("GROOVY_INTERNAL");
             debug(COMPONENT, "Registered Groovy");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register Groovy", e);
@@ -256,14 +335,15 @@ public class LanguageExtensionsRegistrar {
 
     /**
      * Registers Properties file language support.
-     *
-     * <p>Properties files (.properties) are simple key=value configuration files
-     * commonly used in Java applications.</p>
      */
     private static void registerProperties() {
+        if (registeredLanguages.contains("PROPERTIES_INTERNAL")) return;
+
         try {
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(PropertiesLanguage.INSTANCE, new PropertiesParserDefinition());
             LanguageFormatting.INSTANCE.addExplicitExtension(PropertiesLanguage.INSTANCE, new PropertiesFormattingModelBuilder());
+
+            registeredLanguages.add("PROPERTIES_INTERNAL");
             debug(COMPONENT, "Registered Properties");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register Properties", e);
@@ -272,14 +352,15 @@ public class LanguageExtensionsRegistrar {
 
     /**
      * Registers YAML language support.
-     *
-     * <p>YAML is used for configuration files and data serialization.
-     * It has strict indentation rules that the formatter enforces.</p>
      */
     private static void registerYaml() {
+        if (registeredLanguages.contains("YAML_INTERNAL")) return;
+
         try {
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(YAMLLanguage.INSTANCE, new YAMLParserDefinition());
             LanguageFormatting.INSTANCE.addExplicitExtension(YAMLLanguage.INSTANCE, new YAMLFormattingModelBuilder());
+
+            registeredLanguages.add("YAML_INTERNAL");
             debug(COMPONENT, "Registered YAML");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register YAML", e);
@@ -288,34 +369,25 @@ public class LanguageExtensionsRegistrar {
 
     /**
      * Registers Kotlin language support.
-     *
-     * <p>Kotlin requires additional extension point registrations beyond the basic
-     * parser and formatter. It needs:</p>
-     * <ul>
-     *     <li>KotlinPreFormatProcessor - prepares code before formatting</li>
-     *     <li>KotlinLanguageCodeStyleSettingsProvider - provides Kotlin-specific settings</li>
-     *     <li>ElementTypeConverter - for IDEA 2025.x compatibility</li>
-     * </ul>
      */
     private static void registerKotlin(ExtensionsAreaImpl extensionArea, Disposable rootDisposable) {
+        if (registeredLanguages.contains("KOTLIN_INTERNAL")) return;
+
         try {
             LanguageParserDefinitions.INSTANCE.addExplicitExtension(KotlinLanguage.INSTANCE, new KotlinParserDefinition());
             LanguageFormatting.INSTANCE.addExplicitExtension(KotlinLanguage.INSTANCE, new KotlinFormattingModelBuilder());
 
-            // Register Kotlin-specific extensions via extension points
             tryRegisterElementTypeConverterGeneric(KotlinLanguage.INSTANCE);
             tryRegisterKotlinCodeStyleProvider(extensionArea, rootDisposable);
             tryRegisterKotlinPreFormatProcessor(extensionArea, rootDisposable);
 
+            registeredLanguages.add("KOTLIN_INTERNAL");
             debug(COMPONENT, "Registered Kotlin");
         } catch (Exception e) {
             warn(COMPONENT, "Failed to register Kotlin", e);
         }
     }
 
-    /**
-     * Registers Kotlin's pre-format processor for import optimization and other preprocessing.
-     */
     private static void tryRegisterKotlinPreFormatProcessor(ExtensionsAreaImpl extensionArea, Disposable rootDisposable) {
         try {
             var processorClass = Class.forName("org.jetbrains.kotlin.idea.formatter.KotlinPreFormatProcessor");
@@ -335,9 +407,6 @@ public class LanguageExtensionsRegistrar {
         }
     }
 
-    /**
-     * Registers Kotlin's code style settings provider for language-specific formatting options.
-     */
     private static void tryRegisterKotlinCodeStyleProvider(ExtensionsAreaImpl extensionArea, Disposable rootDisposable) {
         try {
             var providerClass = Class.forName("org.jetbrains.kotlin.idea.formatter.KotlinLanguageCodeStyleSettingsProvider");
@@ -357,12 +426,6 @@ public class LanguageExtensionsRegistrar {
         }
     }
 
-    /**
-     * Registers a generic ElementTypeConverter for languages without specialized converters.
-     *
-     * <p>Uses CommonElementTypeConverterFactory which handles common element types
-     * like WHITE_SPACE and ERROR_ELEMENT that are shared across languages.</p>
-     */
     private static void tryRegisterElementTypeConverterGeneric(Language language) {
         try {
             var convertersClass = Class.forName("com.intellij.platform.syntax.psi.ElementTypeConverters");
@@ -374,19 +437,12 @@ public class LanguageExtensionsRegistrar {
             var factoryInstance = factoryClass.getDeclaredConstructor().newInstance();
             addMethod.invoke(languageExtension, language, factoryInstance);
         } catch (ClassNotFoundException e) {
-            // Expected in pre-2025.x IDEA versions
             skipped(COMPONENT, "ElementTypeConverter for " + language.getID(), "IDEA 2025.x API not available");
         } catch (Exception e) {
             skipped(COMPONENT, "ElementTypeConverter for " + language.getID(), e.getMessage());
         }
     }
 
-    /**
-     * Registers a SyntaxDefinition for IDEA 2025.x syntax-based parsing.
-     *
-     * <p>SyntaxDefinition defines the lexer and token types for a language in the
-     * new syntax-based parsing system introduced in IDEA 2025.x.</p>
-     */
     private static void tryRegisterSyntaxDefinition(Language language, String className) {
         try {
             var definitionsClass = Class.forName("com.intellij.platform.syntax.psi.LanguageSyntaxDefinitions");
@@ -399,46 +455,33 @@ public class LanguageExtensionsRegistrar {
             var addMethod = syntaxDefinitions.getClass().getMethod("addExplicitExtension", Language.class, Object.class);
             addMethod.invoke(syntaxDefinitions, language, syntaxDefInstance);
         } catch (ClassNotFoundException e) {
-            // Expected in pre-2025.x IDEA versions
             skipped(COMPONENT, "SyntaxDefinition for " + language.getID(), "IDEA 2025.x API not available");
         } catch (Exception e) {
             skipped(COMPONENT, "SyntaxDefinition for " + language.getID(), e.getMessage());
         }
     }
 
-    /**
-     * Registers an ElementTypeConverter for IDEA 2025.x element type conversion.
-     *
-     * <p>ElementTypeConverter bridges between the traditional IElementType system
-     * and the new SyntaxElementType system. We create a composite converter that
-     * combines the language-specific converter with CommonElementTypeConverter
-     * for fallback handling of common types.</p>
-     */
     private static void tryRegisterElementTypeConverter(Language language, String className) {
         try {
             var convertersClass = Class.forName("com.intellij.platform.syntax.psi.ElementTypeConverters");
             var getInstance = convertersClass.getDeclaredMethod("getInstance");
             var converters = getInstance.invoke(null);
 
-            // Get language-specific converter
             var converterFactoryClass = Class.forName(className);
             var languageFactory = converterFactoryClass.getDeclaredConstructor().newInstance();
             var languageGetConverterMethod = converterFactoryClass.getMethod("getElementTypeConverter");
             var languageConverter = languageGetConverterMethod.invoke(languageFactory);
 
-            // Get common converter for fallback (handles WHITE_SPACE, ERROR_ELEMENT, etc.)
             var commonFactoryClass = Class.forName("com.intellij.platform.syntax.psi.CommonElementTypeConverterFactory");
             var commonFactory = commonFactoryClass.getDeclaredConstructor().newInstance();
             var commonGetConverterMethod = commonFactoryClass.getMethod("getElementTypeConverter");
             var commonConverter = commonGetConverterMethod.invoke(commonFactory);
 
-            // Combine converters: try language-specific first, then fall back to common
             var compositeClass = Class.forName("com.intellij.platform.syntax.psi.CompositeElementTypeConverter");
             var compositeConstructor = compositeClass.getConstructor(List.class);
             compositeConstructor.setAccessible(true);
             var compositeConverter = compositeConstructor.newInstance(List.of(languageConverter, commonConverter));
 
-            // Wrap in a factory interface using dynamic proxy
             var factoryClass = Class.forName("com.intellij.platform.syntax.psi.ElementTypeConverterFactory");
             InvocationHandler handler = (proxy, method, args) -> {
                 if ("getElementTypeConverter".equals(method.getName())) {
@@ -451,17 +494,12 @@ public class LanguageExtensionsRegistrar {
             var addMethod = converters.getClass().getMethod("addExplicitExtension", Language.class, Object.class);
             addMethod.invoke(converters, language, factoryProxy);
         } catch (ClassNotFoundException e) {
-            // Expected in pre-2025.x IDEA versions or when the specific converter doesn't exist
             skipped(COMPONENT, "ElementTypeConverter for " + language.getID(), "class not found");
         } catch (Exception e) {
-            // Fall back to simple registration without composite
             tryRegisterElementTypeConverterSimple(language, className);
         }
     }
 
-    /**
-     * Fallback registration of ElementTypeConverter without composite wrapping.
-     */
     private static void tryRegisterElementTypeConverterSimple(Language language, String className) {
         try {
             var convertersClass = Class.forName("com.intellij.platform.syntax.psi.ElementTypeConverters");
@@ -476,5 +514,13 @@ public class LanguageExtensionsRegistrar {
         } catch (Exception e) {
             skipped(COMPONENT, "ElementTypeConverter (simple) for " + language.getID(), e.getMessage());
         }
+    }
+
+    /**
+     * Resets the registrar state. Used for testing.
+     */
+    public static synchronized void reset() {
+        registeredLanguages.clear();
+        formattingServiceRegistered = false;
     }
 }

@@ -3,6 +3,7 @@ package com.intellij.formatter.bootstrap;
 import com.intellij.mock.MockProject;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.extensions.impl.ExtensionsAreaImpl;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import lombok.experimental.UtilityClass;
@@ -14,29 +15,7 @@ import static com.intellij.formatter.bootstrap.BootstrapLogger.debug;
  *
  * <p>This class sets up all necessary services, extension points, and language support
  * required to use IntelliJ's code formatting engine without a full IDE installation.
- * It creates a headless mock application with the essential services for PSI parsing
- * and code style management.</p>
- *
- * <h2>Architecture Overview</h2>
- * <p>The IntelliJ Platform is designed as a monolithic IDE, but code formatting
- * only needs a subset of its functionality:</p>
- * <pre>
- * ┌─────────────────────────────────────────────────────────────┐
- * │                    FormatterBootstrap                        │
- * │  ┌──────────────────┐  ┌──────────────────────────────────┐ │
- * │  │ MockApplication  │  │          MockProject             │ │
- * │  │                  │  │                                  │ │
- * │  │ - FileTypeManager│  │ - PsiManager                    │ │
- * │  │ - PsiBuilderFact │  │ - CodeStyleManager              │ │
- * │  │ - CodeStyleSett..│  │ - PsiDocumentManager            │ │
- * │  └──────────────────┘  └──────────────────────────────────┘ │
- * │                                                             │
- * │  ┌──────────────────────────────────────────────────────┐  │
- * │  │              LanguageExtensionsRegistrar              │  │
- * │  │  Java | Kotlin | Groovy | XML | HTML | JSON | YAML   │  │
- * │  └──────────────────────────────────────────────────────┘  │
- * └─────────────────────────────────────────────────────────────┘
- * </pre>
+ * Languages are loaded lazily based on file type to improve startup performance.</p>
  *
  * <h2>Usage</h2>
  * <pre>{@code
@@ -52,10 +31,6 @@ import static com.intellij.formatter.bootstrap.BootstrapLogger.debug;
  * // Clean up on application shutdown (optional)
  * FormatterBootstrap.shutdown();
  * }</pre>
- *
- * <h2>Debugging</h2>
- * <p>Enable debug logging with {@code -Dformatter.debug=true} to see detailed
- * information about service registration and language extension loading.</p>
  *
  * @see com.intellij.formatter.core.StandaloneFormatter
  * @see HeadlessMockApplication
@@ -81,7 +56,6 @@ public class FormatterBootstrap {
 
     /*
      * Static initializer: Configure IntelliJ's internal logger to use our silent implementation.
-     * This prevents log spam from IntelliJ internals during formatting operations.
      */
     static {
         Logger.setFactory(category -> new SilentLogger());
@@ -90,19 +64,10 @@ public class FormatterBootstrap {
     /**
      * Initializes the IntelliJ Platform environment for standalone formatting.
      *
-     * <p>This method is thread-safe and idempotent. Multiple calls have no effect
-     * once initialization is complete.</p>
+     * <p>This method is thread-safe and idempotent. Languages are NOT loaded during
+     * initialization - they are loaded lazily when first needed.</p>
      *
-     * <h3>Initialization Steps</h3>
-     * <ol>
-     *     <li>Set system properties for headless operation</li>
-     *     <li>Create root disposable for resource management</li>
-     *     <li>Create mock application with required services</li>
-     *     <li>Create mock project with required services</li>
-     *     <li>Register language extensions (parsers, formatters)</li>
-     * </ol>
-     *
-     * @throws RuntimeException if initialization fails due to missing dependencies or configuration errors
+     * @throws RuntimeException if initialization fails
      */
     public static synchronized void initialize() {
         if (initialized) {
@@ -113,27 +78,23 @@ public class FormatterBootstrap {
         debug(COMPONENT, "Starting initialization");
 
         try {
-            // System properties must be set before creating application
             setupSystemProperties();
 
-            // Create root disposable - disposing it will clean up everything
             rootDisposable = Disposer.newDisposable("StandaloneFormatter");
 
-            // Create application and register application-level services
             application = HeadlessMockApplication.create(rootDisposable);
             ExtensionPointsRegistrar.registerApplicationExtensionPoints(application.getExtensionArea());
             ServicesRegistrar.registerApplicationServices(application);
 
-            // Create project and register project-level services
             project = new MockProject(application.getPicoContainer(), rootDisposable);
             ExtensionPointsRegistrar.registerProjectExtensionPoints(project);
             ServicesRegistrar.registerProjectServices(project);
 
-            // Register language support (parsers, formatters, etc.)
-            LanguageExtensionsRegistrar.registerAll(application.getExtensionArea(), rootDisposable);
+            // NOTE: Languages are NOT registered here anymore.
+            // They are loaded lazily via ensureLanguageRegistered() when formatting.
 
             initialized = true;
-            debug(COMPONENT, "Initialization complete");
+            debug(COMPONENT, "Initialization complete (languages will be loaded lazily)");
         } catch (Exception e) {
             debug(COMPONENT, "Initialization failed: " + e.getMessage());
             throw new RuntimeException("Failed to initialize standalone formatter", e);
@@ -141,13 +102,48 @@ public class FormatterBootstrap {
     }
 
     /**
+     * Ensures that the language for the given file is registered.
+     * This method should be called before formatting a file.
+     *
+     * @param fileName the file name to determine which language to load
+     */
+    public static synchronized void ensureLanguageRegistered(String fileName) {
+        ensureInitialized();
+
+        var group = LanguageExtensionsRegistrar.getLanguageGroupForFile(fileName);
+        if (group != null && !LanguageExtensionsRegistrar.isLanguageRegistered(group)) {
+            debug(COMPONENT, "Loading language for: " + fileName);
+            LanguageExtensionsRegistrar.registerLanguageGroup(
+                    group,
+                    application.getExtensionArea(),
+                    rootDisposable
+            );
+        }
+    }
+
+    /**
+     * Returns the extension area for language registration.
+     * Used internally by LanguageExtensionsRegistrar.
+     */
+    public static ExtensionsAreaImpl getExtensionArea() {
+        ensureInitialized();
+        return application.getExtensionArea();
+    }
+
+    /**
+     * Returns the root disposable.
+     * Used internally for registering extensions with proper lifecycle.
+     */
+    public static Disposable getRootDisposable() {
+        ensureInitialized();
+        return rootDisposable;
+    }
+
+    /**
      * Returns the mock project instance used for formatting operations.
      *
-     * <p>The project provides access to project-level services like
-     * {@code CodeStyleManager} and {@code PsiManager}.</p>
-     *
      * @return the mock project
-     * @throws IllegalStateException if {@link #initialize()} has not been called
+     * @throws IllegalStateException if not initialized
      */
     public static Project getProject() {
         ensureInitialized();
@@ -157,11 +153,8 @@ public class FormatterBootstrap {
     /**
      * Returns the mock application instance.
      *
-     * <p>The application provides access to application-level services like
-     * {@code FileTypeManager} and {@code PsiBuilderFactory}.</p>
-     *
      * @return the mock application
-     * @throws IllegalStateException if {@link #initialize()} has not been called
+     * @throws IllegalStateException if not initialized
      */
     public static HeadlessMockApplication getApplication() {
         ensureInitialized();
@@ -179,14 +172,6 @@ public class FormatterBootstrap {
 
     /**
      * Shuts down the IntelliJ Platform environment and releases all resources.
-     *
-     * <p>This method disposes all services and clears references. After calling
-     * this method, {@link #initialize()} must be called again before using
-     * any formatting functionality.</p>
-     *
-     * <p>Note: In most CLI applications, calling shutdown is optional as the
-     * JVM exit will clean up resources anyway. It's useful for long-running
-     * applications that want to release memory.</p>
      */
     public static synchronized void shutdown() {
         if (rootDisposable != null) {
@@ -196,31 +181,21 @@ public class FormatterBootstrap {
             application = null;
             project = null;
             initialized = false;
+            LanguageExtensionsRegistrar.reset();
             debug(COMPONENT, "Shutdown complete");
         }
     }
 
     /**
      * Configures system properties required for headless IntelliJ operation.
-     *
-     * <p>These properties disable GUI-related features and configure IntelliJ
-     * to run in a non-interactive mode.</p>
      */
     private static void setupSystemProperties() {
-        // Run without GUI (no Swing/AWT windows)
         System.setProperty("java.awt.headless", "true");
-
-        // Disable internal features that require IDE infrastructure
         System.setProperty("idea.is.internal", "false");
         System.setProperty("idea.is.unit.test", "false");
-
-        // Disable Windows-specific native filesystem (not needed for formatting)
         System.setProperty("idea.use.native.fs.for.win", "false");
-
-        // Disable ProcessCanceledException - we don't have cancellation UI
         System.setProperty("idea.ProcessCanceledException", "disabled");
 
-        // Initialize registry keys for formatting behavior
         RegistryInitializer.initialize();
     }
 
