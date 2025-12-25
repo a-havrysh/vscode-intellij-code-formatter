@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# idea-format - IntelliJ IDEA Code Formatter CLI
+#
+# Format source code using IntelliJ IDEA's formatting engine.
+#
+# Usage:
+#   idea-format [options] <file>
+#
+# Options:
+#   -s, --style <path>    Load IntelliJ code style from XML file
+#   --lines <start:end>   Format only specified line range (1-based)
+#   -h, --help            Show help message
+#   -v, --version         Show version information
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+JAR_PATH="$PROJECT_DIR/build/libs/vscode-idea-code-formatter.jar"
+
+# Check if JAR exists
+if [[ ! -f "$JAR_PATH" ]]; then
+    echo "Error: Formatter JAR not found at $JAR_PATH" >&2
+    echo "Run './gradlew build' first to build the formatter." >&2
+    exit 1
+fi
+
+# Check Java version
+if ! command -v java &> /dev/null; then
+    echo "Error: Java not found. Please install Java 21 or later." >&2
+    exit 1
+fi
+
+JAVA_VERSION=$(java -version 2>&1 | head -n1 | cut -d'"' -f2 | cut -d'.' -f1)
+if [[ "$JAVA_VERSION" -lt 21 ]]; then
+    echo "Error: Java 21 or later required. Found: Java $JAVA_VERSION" >&2
+    exit 1
+fi
+
+# Run the formatter with required JVM options
+exec java \
+    --add-opens java.base/java.lang=ALL-UNNAMED \
+    --add-opens java.base/java.lang.reflect=ALL-UNNAMED \
+    --add-opens java.base/java.io=ALL-UNNAMED \
+    --add-opens java.base/java.util=ALL-UNNAMED \
+    --add-opens java.base/java.util.concurrent=ALL-UNNAMED \
+    --add-opens java.desktop/sun.awt=ALL-UNNAMED \
+    --add-opens java.desktop/java.awt=ALL-UNNAMED \
+    --add-opens java.desktop/javax.swing=ALL-UNNAMED \
+    -Djava.awt.headless=true \
+    -jar "$JAR_PATH" \
+    "$@"
