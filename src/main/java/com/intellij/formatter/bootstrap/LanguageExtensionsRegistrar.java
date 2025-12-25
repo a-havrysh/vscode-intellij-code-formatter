@@ -80,28 +80,6 @@ public class LanguageExtensionsRegistrar {
     }
 
     /**
-     * Registers all language extensions for supported file types.
-     * @deprecated Use {@link #registerLanguageForFile(String, ExtensionsAreaImpl, Disposable)} for lazy loading
-     */
-    @Deprecated
-    public static void registerAll(ExtensionsAreaImpl extensionArea, Disposable rootDisposable) {
-        debug(COMPONENT, "Registering all language extensions");
-
-        registerFormattingService(extensionArea, rootDisposable);
-
-        registerJava();
-        registerXml();
-        registerHtml();
-        registerJson();
-        registerGroovy();
-        registerProperties();
-        registerYaml();
-        registerKotlin(extensionArea, rootDisposable);
-
-        debug(COMPONENT, "All language extensions registered");
-    }
-
-    /**
      * Registers only the language needed for the given file.
      * This is the preferred method for lazy loading.
      *
