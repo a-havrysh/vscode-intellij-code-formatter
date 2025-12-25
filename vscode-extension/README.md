@@ -233,7 +233,7 @@ Report issues and feature requests on [GitHub](https://github.com/kern0x1b/vscod
 
 ## License
 
-Apache License 2.0
+MIT License
 
 ## Acknowledgments
 
