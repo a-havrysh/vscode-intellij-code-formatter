@@ -19,6 +19,8 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.SwingUtilities;
 import java.lang.reflect.InvocationTargetException;
 
+import com.intellij.formatter.bootstrap.FormatterBootstrap;
+
 import static com.intellij.formatter.bootstrap.FormatterBootstrap.getProject;
 import static com.intellij.formatter.bootstrap.FormatterBootstrap.initialize;
 import static com.intellij.openapi.application.ApplicationManager.getApplication;
@@ -86,6 +88,7 @@ public class StandaloneFormatter {
      */
     public static String formatCode(@NotNull String code, @NotNull String fileName) throws FormattingException {
         initialize();
+        FormatterBootstrap.ensureLanguageRegistered(fileName);
         var project = getProject();
 
         BootstrapLogger.debug(COMPONENT, "Formatting: " + fileName);
@@ -138,6 +141,7 @@ public class StandaloneFormatter {
                                          int startLine,
                                          int endLine) throws FormattingException {
         initialize();
+        FormatterBootstrap.ensureLanguageRegistered(fileName);
         var project = getProject();
 
         BootstrapLogger.debug(COMPONENT, "Formatting range: " + fileName + " [" + startLine + ":" + endLine + "]");
