@@ -1,17 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="sky" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#FC801D"/>
-      <stop offset="50%" style="stop-color:#FE2857"/>
+      <stop offset="35%" style="stop-color:#FE2857"/>
+      <stop offset="70%" style="stop-color:#9758FF"/>
       <stop offset="100%" style="stop-color:#087CFA"/>
     </linearGradient>
+    <clipPath id="rounded">
+      <rect width="128" height="128" rx="24"/>
+    </clipPath>
   </defs>
-  <rect width="128" height="128" rx="24" fill="url(#bg)"/>
+
+  <!-- Background gradient -->
+  <rect width="128" height="128" rx="24" fill="url(#sky)"/>
+
+  <!-- Formatted code lines -->
   <g fill="#fff">
-    <rect x="24" y="36" width="50" height="6" rx="3"/>
-    <rect x="24" y="50" width="80" height="6" rx="3"/>
-    <rect x="24" y="64" width="65" height="6" rx="3"/>
-    <rect x="24" y="78" width="40" height="6" rx="3"/>
+    <rect x="24" y="20" width="56" height="6" rx="3"/>
+    <rect x="32" y="34" width="64" height="6" rx="3"/>
+    <rect x="40" y="48" width="48" height="6" rx="3"/>
+    <rect x="32" y="62" width="56" height="6" rx="3"/>
+    <rect x="24" y="76" width="44" height="6" rx="3"/>
   </g>
-  <path d="M90 72 L104 86 L90 100" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Bottom tabs - flat top, layered, going off edge -->
+  <g clip-path="url(#rounded)">
+    <!-- Back tab - darkest, partially visible on left -->
+    <path d="M-16 100 L-16 128 L48 128 L48 100 Q48 94 42 94 L-10 94 Q-16 94 -16 100 Z" fill="#1A1B1E"/>
+
+    <!-- Middle tab -->
+    <path d="M32 98 L32 128 L96 128 L96 98 Q96 92 90 92 L38 92 Q32 92 32 98 Z" fill="#25324D"/>
+
+    <!-- Front tab - lightest, going off right edge -->
+    <path d="M80 96 L80 128 L144 128 L144 96 Q144 90 138 90 L86 90 Q80 90 80 96 Z" fill="#3D5A80"/>
+  </g>
 </svg>
