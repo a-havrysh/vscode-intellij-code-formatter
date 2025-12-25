@@ -282,7 +282,7 @@ java -Didea.log.debug=true ... -jar formatter.jar file.java
 
 ## License
 
-Apache License 2.0
+MIT License
 
 ## Acknowledgments
 
