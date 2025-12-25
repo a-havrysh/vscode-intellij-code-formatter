@@ -128,34 +128,34 @@
         ],
         "configurationDefaults": {
             "[java]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[kotlin]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[groovy]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[gradle]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[gradle-kotlin-dsl]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[xml]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[html]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[json]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[yaml]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             },
             "[properties]": {
-                "editor.defaultFormatter": "idea-formatter.intellij-formatter"
+                "editor.defaultFormatter": "oleksandr-havrysh.intellij-formatter"
             }
         }
     },
