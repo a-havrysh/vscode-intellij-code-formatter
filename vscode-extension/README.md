@@ -229,7 +229,7 @@ The first format operation may take 2-3 seconds as the JVM starts. Subsequent op
 
 ## Feedback and Issues
 
-Report issues and feature requests on [GitHub](https://github.com/your-repo/vscode-idea-code-formatter/issues).
+Report issues and feature requests on [GitHub](https://github.com/a-havrysh/vscode-intellij-code-formatter/issues).
 
 ## License
 
