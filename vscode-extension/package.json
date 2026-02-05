@@ -2,7 +2,7 @@
     "name": "intellij-formatter",
     "displayName": "IntelliJ Code Formatter",
     "description": "Format code using IntelliJ IDEA's formatting engine",
-    "version": "2025.3.1",
+    "version": "2025.3.2",
     "publisher": "OleksandrHavrysh",
     "icon": "icon.png",
     "engines": {

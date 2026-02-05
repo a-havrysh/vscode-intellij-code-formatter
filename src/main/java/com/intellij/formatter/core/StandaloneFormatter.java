@@ -94,11 +94,17 @@ public class StandaloneFormatter {
         BootstrapLogger.debug(COMPONENT, "Formatting: " + fileName);
 
         try {
+            // Detect original line ending to preserve it after formatting
+            var originalLineEnding = detectLineEnding(code);
+
+            // Normalize line endings to LF for IntelliJ Platform compatibility
+            var normalizedCode = normalizeLineEndings(code);
+
             var fileType = FileTypeManager.getInstance().getFileTypeByFileName(fileName);
             var psiFileFactory = PsiFileFactory.getInstance(project);
 
             // Create PsiFile from source code - this is the AST representation
-            var psiFile = createPsiFile(psiFileFactory, fileName, code, fileType);
+            var psiFile = createPsiFile(psiFileFactory, fileName, normalizedCode, fileType);
 
             if (psiFile == null) {
                 throw new FormattingException("Failed to create PsiFile for: " + fileName +
@@ -110,7 +116,10 @@ public class StandaloneFormatter {
 
             // Extract text from the formatted PsiFile
             // Use calcTreeElement() for PsiFileImpl to get the latest AST text
-            var result = extractText(formattedFile);
+            String result = extractText(formattedFile);
+
+            // Convert line endings back to original format
+            result = convertLineEndings(result, originalLineEnding);
 
             BootstrapLogger.debug(COMPONENT, "Formatting complete: " + fileName);
             return result;
@@ -147,6 +156,12 @@ public class StandaloneFormatter {
         BootstrapLogger.debug(COMPONENT, "Formatting range: " + fileName + " [" + startLine + ":" + endLine + "]");
 
         try {
+            // Detect original line ending to preserve it after formatting
+            var originalLineEnding = detectLineEnding(code);
+
+            // Normalize line endings to LF for IntelliJ Platform compatibility
+            var normalizedCode = normalizeLineEndings(code);
+
             var fileType = FileTypeManager.getInstance().getFileTypeByFileName(fileName);
             var psiFileFactory = PsiFileFactory.getInstance(project);
 
@@ -154,9 +169,9 @@ public class StandaloneFormatter {
             PsiFile psiFile;
             if (fileType instanceof LanguageFileType languageFileType) {
                 var language = languageFileType.getLanguage();
-                psiFile = psiFileFactory.createFileFromText(fileName, language, code);
+                psiFile = psiFileFactory.createFileFromText(fileName, language, normalizedCode);
             } else {
-                psiFile = psiFileFactory.createFileFromText(fileName, fileType, code);
+                psiFile = psiFileFactory.createFileFromText(fileName, fileType, normalizedCode);
             }
 
             if (psiFile == null) {
@@ -164,13 +179,17 @@ public class StandaloneFormatter {
             }
 
             // Convert line numbers to character offsets
+            // Now working with normalized text (LF only)
             var text = psiFile.getText();
             var startOffset = getLineStartOffset(text, startLine);
             var endOffset = getLineEndOffset(text, endLine);
 
             // Format the specified range
             var formattedFile = formatPsiFileRange(psiFile, startOffset, endOffset);
-            var result = extractText(formattedFile);
+            String result = extractText(formattedFile);
+
+            // Convert line endings back to original format
+            result = convertLineEndings(result, originalLineEnding);
 
             BootstrapLogger.debug(COMPONENT, "Range formatting complete: " + fileName);
             return result;
@@ -317,13 +336,21 @@ public class StandaloneFormatter {
 
     /**
      * Converts a 1-based line number to a character offset (start of line).
+     * Handles CRLF (\r\n), LF (\n), and CR (\r) line endings.
      */
     private static int getLineStartOffset(String text, int line) {
         var currentLine = 1;
         var offset = 0;
 
         while (currentLine < line && offset < text.length()) {
-            if (text.charAt(offset) == '\n') {
+            char c = text.charAt(offset);
+            if (c == '\r') {
+                // Check if it's CRLF
+                if (offset + 1 < text.length() && text.charAt(offset + 1) == '\n') {
+                    offset++; // Skip the \n as well
+                }
+                currentLine++;
+            } else if (c == '\n') {
                 currentLine++;
             }
             offset++;
@@ -333,13 +360,24 @@ public class StandaloneFormatter {
 
     /**
      * Converts a 1-based line number to a character offset (end of line).
+     * Handles CRLF (\r\n), LF (\n), and CR (\r) line endings.
      */
     private static int getLineEndOffset(String text, int line) {
         var currentLine = 1;
         var offset = 0;
 
         while (offset < text.length()) {
-            if (text.charAt(offset) == '\n') {
+            char c = text.charAt(offset);
+            if (c == '\r') {
+                if (currentLine == line) {
+                    return offset;
+                }
+                // Check if it's CRLF
+                if (offset + 1 < text.length() && text.charAt(offset + 1) == '\n') {
+                    offset++; // Skip the \n as well
+                }
+                currentLine++;
+            } else if (c == '\n') {
                 if (currentLine == line) {
                     return offset;
                 }
@@ -348,5 +386,44 @@ public class StandaloneFormatter {
             offset++;
         }
         return text.length();
+    }
+
+    /**
+     * Detects the line ending style used in the text.
+     * Returns CRLF (\r\n), LF (\n), CR (\r), or the system default if none found.
+     */
+    private static String detectLineEnding(String text) {
+        if (text.contains("\r\n")) {
+            return "\r\n"; // CRLF (Windows)
+        }
+        if (text.contains("\n")) {
+            return "\n"; // LF (Unix/Linux/macOS)
+        }
+        if (text.contains("\r")) {
+            return "\r"; // CR (old Mac, rare)
+        }
+        return System.lineSeparator(); // Default to system line separator
+    }
+
+    /**
+     * Normalizes all line endings in the text to LF (\n).
+     * IntelliJ Platform expects LF line endings internally.
+     */
+    private static String normalizeLineEndings(String text) {
+        // Replace CRLF with LF first (order matters!)
+        return text.replace("\r\n", "\n")
+                   .replace("\r", "\n");
+    }
+
+    /**
+     * Converts all line endings in the text to the specified line ending.
+     */
+    private static String convertLineEndings(String text, String lineEnding) {
+        if ("\n".equals(lineEnding)) {
+            return text; // Already LF, no conversion needed
+        }
+        // First normalize to LF, then convert to target
+        String normalized = normalizeLineEndings(text);
+        return normalized.replace("\n", lineEnding);
     }
 }

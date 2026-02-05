@@ -44,7 +44,7 @@ import static com.intellij.formatter.bootstrap.FormatterBootstrap.initialize;
  */
 public final class JetbrainsFormatterApplication {
 
-    private static final String VERSION = "2025.3.1";
+    private static final String VERSION = "2025.3.2";
 
     private JetbrainsFormatterApplication() {
         // Application entry point - prevent instantiation
