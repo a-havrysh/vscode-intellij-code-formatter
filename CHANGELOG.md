@@ -2,7 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
 
 ## [2025.3.2] - 2026-02-05
 
@@ -21,6 +24,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Added `convertLineEndings()` to restore original line endings after formatting
 - Updated offset calculation methods to correctly handle CRLF sequences
 
-## [2025.3.1] - Previous Release
+## [2025.3.1] - 2025-12-25
 
-Initial release with IntelliJ 2025.3.1 formatting engine support.
+### Added
+- Initial release with IntelliJ 2025.3.1 formatting engine support.
