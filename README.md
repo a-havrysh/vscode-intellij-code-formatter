@@ -201,25 +201,11 @@ This approach ensures **identical formatting results** to IntelliJ IDEA while ru
 
 ## VSCode Integration
 
-### VSCode Extension
-
-A ready-to-use VSCode extension is built automatically:
-
-```bash
-# Build both JAR and VSCode extension
-./gradlew build
-
-# Install the extension
-code --install-extension vscode-extension/intellij-formatter-2025.3.2.vsix
-```
-
-The extension provides:
-- Format on demand (`Shift+Alt+F`)
-- Format selection (`Ctrl+K Ctrl+F`)
-- Per-language enable/disable settings
-- Custom code style support via settings
-
-See [vscode-extension/README.md](vscode-extension/README.md) for detailed extension documentation.
+A ready-to-use VSCode extension is built automatically via `./gradlew build`
+(output: `vscode-extension/intellij-formatter-2025.3.2.vsix`). See
+[vscode-extension/README.md](vscode-extension/README.md) for install steps,
+features, and configuration — this section only covers wiring the standalone
+JAR into VS Code manually, without the extension.
 
 ### Manual Integration with Tasks
 
