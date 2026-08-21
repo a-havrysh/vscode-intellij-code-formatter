@@ -34,7 +34,7 @@ Format your code using IntelliJ IDEA's formatting engine directly in VSCode. Get
 ### From VSIX File
 
 ```bash
-code --install-extension intellij-formatter-0.1.0.vsix
+code --install-extension intellij-formatter-2025.3.2.vsix
 ```
 
 ### From Source
@@ -48,7 +48,7 @@ cd vscode-idea-code-formatter
 ./gradlew build
 
 # Install
-code --install-extension vscode-extension/intellij-formatter-0.1.0.vsix
+code --install-extension vscode-extension/intellij-formatter-2025.3.2.vsix
 ```
 
 ## Usage

@@ -40,8 +40,8 @@ A standalone code formatter that leverages IntelliJ IDEA's powerful formatting e
 ### 1. Build the Project
 
 ```bash
-git clone <repository-url>
-cd vscode-idea-code-formatter
+git clone https://github.com/kern0x1b/vscode-intellij-code-formatter.git
+cd vscode-intellij-code-formatter
 
 # Download IntelliJ IDEA and build the formatter
 ./gradlew build
@@ -160,7 +160,7 @@ public class Example {
 ## Project Architecture
 
 ```
-vscode-idea-code-formatter/
+vscode-intellij-code-formatter/
 ├── build.gradle.kts              # Build configuration with IDE download tasks
 ├── src/main/java/
 │   └── com/intellij/formatter/
@@ -210,7 +210,7 @@ A ready-to-use VSCode extension is built automatically:
 ./gradlew build
 
 # Install the extension
-code --install-extension vscode-extension/intellij-formatter-0.1.0.vsix
+code --install-extension vscode-extension/intellij-formatter-2025.3.2.vsix
 ```
 
 The extension provides:
@@ -285,9 +285,17 @@ Enable verbose logging by setting the system property:
 java -Didea.log.debug=true ... -jar formatter.jar file.java
 ```
 
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Please
+report security issues per [SECURITY.md](SECURITY.md) rather than as a public
+issue.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
 ## License
 
-MIT License
+[MIT](LICENSE)
 
 ## Acknowledgments
 
