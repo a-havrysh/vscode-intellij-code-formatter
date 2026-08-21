@@ -1,6 +1,11 @@
 # IntelliJ IDEA Code Formatter (Standalone)
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/OleksandrHavrysh.intellij-formatter?label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=OleksandrHavrysh.intellij-formatter)
+
 A standalone code formatter that leverages IntelliJ IDEA's powerful formatting engine without requiring a full IDE installation. Format Java, Kotlin, XML, JSON, YAML, Groovy, and Properties files from the command line with IntelliJ's high-quality code style.
+
+**Looking for the VS Code extension?** See [`vscode-extension/README.md`](vscode-extension/README.md) or install it directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=OleksandrHavrysh.intellij-formatter). This root README covers the underlying standalone/CLI formatter and how to build it from source.
 
 ## Features
 
